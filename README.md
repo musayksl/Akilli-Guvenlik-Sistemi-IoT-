@@ -34,4 +34,63 @@ Hareket algılandığında alarm çalar ve Telegram üzerinden anında bildirim 
 - BD139 Emitter → GND  
 
 ---
+📌 Arduino IDE'yi açın.
+
+📌 Gerekli kütüphaneleri yükleyin:
+
+- NewPing (HC-SR04 için)
+
+- UniversalTelegramBot (Telegram API)
+
+- ESP8266WiFi (NodeMCU WiFi)
+
+📌 Aşağıdaki bilgileri kodda düzenleyin ve kodu yükleyin:
+
+const char* ssid = "WIFI_ADINIZ";
+const char* password = "WIFI_SIFRENIZ";
+#define BOT_TOKEN "TELEGRAM_BOT_TOKEN"
+#define CHAT_ID "TELEGRAM_CHAT_ID"
+
+📌 Kod:
+
+```cpp
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <NewPing.h>
+
+#define TRIG_PIN D1
+#define ECHO_PIN D2
+#define MAX_DISTANCE 200
+#define BUZZER_PIN D5
+
+NewPing sonar(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  WiFi.begin("WIFI_ADINIZ", "WIFI_SIFRENIZ");
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+  Serial.println("WiFi Bağlı!");
+}
+
+void loop() {
+  int distance = sonar.ping_cm();
+  if (distance > 0 && distance < 100) {
+    Serial.println("Hareket Algılandı!");
+    digitalWrite(BUZZER_PIN, HIGH);
+    sendTelegramNotification();
+    delay(2000);
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+}
+
+void sendTelegramNotification() {
+  WiFiClientSecure client;
+  client.setInsecure();
+  UniversalTelegramBot bot("TELEGRAM_BOT_TOKEN", client);
+  bot.sendMessage("TELEGRAM_CHAT_ID", "Hareket Algılandı!", "");
+}
+```
 

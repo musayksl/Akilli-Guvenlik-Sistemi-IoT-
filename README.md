@@ -59,38 +59,87 @@ const char* password = "WIFI_SIFRENIZ";
 #include <UniversalTelegramBot.h>
 #include <NewPing.h>
 
+// WiFi bilgileri
+const char* ssid = "WIFI_ADINIZ";
+const char* password = "WIFI_SIFRENIZ";
+
+// Telegram Bot Bilgileri
+#define BOT_TOKEN "TELEGRAM_BOT_TOKEN"
+#define CHAT_ID "TELEGRAM_CHAT_ID"
+
+// HC-SR04 Bağlantıları
 #define TRIG_PIN D1
 #define ECHO_PIN D2
 #define MAX_DISTANCE 200
+
+// Buzzer Bağlantısı (BD139 ile)
 #define BUZZER_PIN D5
 
+// Sensör Ayarları
 NewPing sonar(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
+unsigned long previousMillis = 0;
+const long interval = 50; // Hızlı ölçüm (50ms)
+bool buzzerActive = false;
 
 void setup() {
   Serial.begin(115200);
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
-  WiFi.begin("WIFI_ADINIZ", "WIFI_SIFRENIZ");
-  while (WiFi.status() != WL_CONNECTED) delay(500);
-  Serial.println("WiFi Bağlı!");
-}
 
-void loop() {
-  int distance = sonar.ping_cm();
-  if (distance > 0 && distance < 100) {
-    Serial.println("Hareket Algılandı!");
-    digitalWrite(BUZZER_PIN, HIGH);
-    sendTelegramNotification();
-    delay(2000);
-    digitalWrite(BUZZER_PIN, LOW);
+  // WiFi Bağlantısı
+  Serial.print("WiFi'ye bağlanılıyor...");
+  WiFi.begin(ssid, password);
+  int retryCount = 0;
+  while (WiFi.status() != WL_CONNECTED && retryCount < 5) {
+    delay(1000);
+    Serial.print(".");
+    retryCount++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi Bağlı!");
+  } else {
+    Serial.println("\nWiFi Bağlanamadı. Sadece Buzzer Çalışır.");
   }
 }
 
-void sendTelegramNotification() {
-  WiFiClientSecure client;
-  client.setInsecure();
-  UniversalTelegramBot bot("TELEGRAM_BOT_TOKEN", client);
-  bot.sendMessage("TELEGRAM_CHAT_ID", "Hareket Algılandı!", "");
+void loop() {
+  unsigned long currentMillis = millis();
+  
+  // Sensör Hızlı Ölçüm
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    int distance = sonar.ping_cm();
+    Serial.print("Mesafe: ");
+    Serial.print(distance);
+    Serial.println(" cm");
+
+    // Hareket Algılama (Mesafe 0-50 cm arası)
+    if (distance > 0 && distance < 50) {
+      Serial.println("Hareket Algılandı!");
+      digitalWrite(BUZZER_PIN, HIGH); // Buzzer çalışır
+      sendTelegramNotification();     // Telegram Bildirimi
+      delay(2000);                    // 2 saniye bekle (buzzer ve bildirim)
+      digitalWrite(BUZZER_PIN, LOW);  // Buzzer kapanır
+    }
+  }
 }
+
+// Telegram Bildirimi Gönderme Fonksiyonu
+void sendTelegramNotification() {
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClientSecure client;
+    client.setInsecure();
+    UniversalTelegramBot bot(BOT_TOKEN, client);
+    bot.sendMessage(CHAT_ID, "Hareket Algılandı!", "");
+    Serial.println("Telegram Bildirimi Gönderildi.");
+  } else {
+    Serial.println("WiFi Bağlı Değil. Bildirim Gönderilemedi.");
+  }
+}
+
+
+ 
+ 
 ```
 
